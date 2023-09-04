@@ -20,13 +20,69 @@ app.get("/", async (_req, res) => {
     res.json({ msg: "Hello! There's nothing interesting for GET /" });
 });
 
-app.get("/health-check", async (_req, res) => {
+app.get("/recipes", async (_req, res) => {
     try {
-        //For this to be successful, must connect to db
-        await client.query("select now()");
-        res.status(200).send("system ok");
+        const sqlQuery = "SELECT * FROM Recipes ";
+        const response = await client.query(sqlQuery);
+        res.status(200).json(response.rows);
     } catch (error) {
-        //Recover from error rather than letting system halt
+        console.error(error);
+        res.status(500).send("An error occurred. Check server logs.");
+    }
+});
+
+app.get<{ id: string }>("/recipes/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const sqlQuery = "SELECT * FROM Recipes WHERE recipe_id = $1";
+        const values = [id];
+        const response = await client.query(sqlQuery, values);
+        res.status(200).json(response.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("An error occurred. Check server logs.");
+    }
+});
+
+app.post<{}>("/recipes", async (req, res) => {
+    try {
+        const {
+            name,
+            cuisine,
+            allergen_free,
+            spice_level,
+            cooking_time_minutes,
+            calorie_count,
+            popular,
+        } = req.body;
+        const insertQuery =
+            "INSERT INTO Recipes (name, cuisine, allergen_free, spice_level, cooking_time_minutes, calorie_count, popular) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *";
+        const values = [
+            name,
+            cuisine,
+            allergen_free,
+            spice_level,
+            cooking_time_minutes,
+            calorie_count,
+            popular,
+        ];
+
+        const response = await client.query(insertQuery, values);
+        res.status(201).json(response.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("An error occurred. Check server logs.");
+    }
+});
+
+app.delete<{ id: string }>("/recipes/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const query = "delete from recipes where recipe_id = $1";
+        const values = [id];
+        await client.query(query, values);
+        res.status(201).json(`recipe ${id} has been deleted`);
+    } catch (error) {
         console.error(error);
         res.status(500).send("An error occurred. Check server logs.");
     }
